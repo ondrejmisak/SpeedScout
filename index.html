@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Karting Clash</title>
+    <style></style>
+</head>
+
+<body>
+    <h1>Karting Clash</h1>
+    <div class="main-timer-container" role="region" aria-label="Main Race Timer Controls">
+        <label for="raceTimeInput">Set Race Time (HH:MM:SS):</label>
+        <input type="time" id="raceTimeInput" step="1" value="01:00:00" />
+        <div id="mainTimerDisplay" aria-live="polite" aria-atomic="true">01:00:00</div>
+        <button class="control-btn" id="btnStart">Start</button>
+        <button class="control-btn" id="btnPause" disabled>Pause</button>
+        <button class="control-btn" id="btnReset" disabled>Reset</button>
+    </div>
+    <div class="teams-container" role="region" aria-label="Teams Timers">
+       
+    </div>
+
+    <script>
+        (() => {
+            const raceTimeInput = document.getElementById('raceTimeInput');
+            const mainTimerDisplay = document.getElementById('mainTimerDisplay');
+            const btnStart = document.getElementById('btnStart');
+            const btnPause = document.getElementById('btnPause');
+            const btnReset = document.getElementById('btnReset');
+            const teamsContainer = document.querySelector('.teams-container');
+
+            // Utility functions for time formatting
+            function formatTimeMs(ms) {
+                const h = Math.floor(ms / 3600000);
+                const m = Math.floor((ms % 3600000) / 60000);
+                const s = Math.floor((ms % 60000) / 1000);
+                const cs = Math.floor((ms % 1000) / 10); // centiseconds
+                return (
+                    (h > 0 ? h.toString().padStart(2, '0') + ':' : '') +
+                    m.toString().padStart(2, '0') + ':' +
+                    s.toString().padStart(2, '0') + '.' +
+                    cs.toString().padStart(2, '0')
+                );
+            }
+
+            // Parse race time input value (HH:MM:SS) to milliseconds
+            function parseRaceTimeInput(val) {
+                const parts = val.split(':');
+                if (parts.length === 3) {
+                    const [h, m, s] = parts.map(x => parseInt(x, 10));
+                    if ([h, m, s].some(isNaN)) return null;
+                    return (h * 3600 + m * 60 + s) * 1000;
+                }
+                return null;
+            }
+            // Format ms to HH:MM:SS for main timer display
+            function formatHHMMSS(ms) {
+                let s = Math.floor(ms / 1000);
+                const h = Math.floor(s / 3600);
+                s -= h * 3600;
+                const m = Math.floor(s / 60);
+                s -= m * 60;
+                return [h, m, s].map(v => v.toString().padStart(2, '0')).join(':');
+            }
+
+            // Main race timer state
+            let raceDurationMs = parseRaceTimeInput(raceTimeInput.value) || 3600000;
+            let raceRemainingMs = raceDurationMs;
+            let raceInterval = null;
+            let raceRunning = false;
+            const startTimestamp = { value: null }; // to handle pause/resume
+
+            // Team objects hold pit and rider timers
+            class Team {
+                constructor(id) {
+                    this.id = id;
+                    this.pitIntervals = []; // array of {startTime,endTime,durationMs}
+                    this.pitRunning = false;
+                    this.pitStartTime = 0;
+                    this.riderStartTimestamp = null; // timestamp when rider timer started counting
+                    this.lastRaceElapsed = 0; // to track race elapsed for updates
+                    // Create DOM elements
+                    this.el = this.createTeamColumn();
+                    this.bindPitButtons();
+                }
+                createTeamColumn() {
+                    const col = document.createElement('section');
+                    col.className = 'team-column';
+                    col.setAttribute('aria-label', `Team ${this.id + 1}`);
+
+                    this.headerInput = document.createElement('input');
+                    this.headerInput.type = 'text';
+                    this.headerInput.value = `Team ${this.id + 1}`;
+                    this.headerInput.className = 'team-header-input';
+                    this.headerInput.setAttribute('aria-label', `Team ${this.id + 1} Name`);
+                    col.appendChild(this.headerInput);
+
+                    // Pit controls
+                    const pitControls = document.createElement('div');
+                    pitControls.className = 'pit-controls';
+
+                    this.btnPitIn = document.createElement('button');
+                    this.btnPitIn.className = 'pit-btn';
+                    this.btnPitIn.textContent = 'IN';
+                    this.btnPitIn.setAttribute('aria-pressed', 'false');
+
+                    this.btnPitOut = document.createElement('button');
+                    this.btnPitOut.className = 'pit-btn';
+                    this.btnPitOut.textContent = 'OUT';
+                    this.btnPitOut.disabled = true;
+
+                    pitControls.appendChild(this.btnPitIn);
+                    pitControls.appendChild(this.btnPitOut);
+                    col.appendChild(pitControls);
+
+                    // Pit timer display
+                    this.pitTimerDisplay = document.createElement('div');
+                    this.pitTimerDisplay.className = 'pit-timer';
+                    this.pitTimerDisplay.textContent = '00:00.00'; // initial 0 time
+                    col.appendChild(this.pitTimerDisplay);
+
+                    // Pit times strips container
+                    this.pitTimesList = document.createElement('div');
+                    this.pitTimesList.className = 'pit-times-list';
+                    col.appendChild(this.pitTimesList);
+
+                    // Rider timer display
+                    this.riderTimerDisplay = document.createElement('p');
+                    this.riderTimerDisplay.className = 'rider-timer';
+                    this.riderTimerDisplay.textContent = '00:00.00';
+                    col.appendChild(this.riderTimerDisplay);
+
+                    // New UL lists for history
+                    const pitHistoryTitle = document.createElement('p');
+                    pitHistoryTitle.className = 'times-history-title';
+                    pitHistoryTitle.textContent = 'Pit times history';
+                    col.appendChild(pitHistoryTitle);
+
+                    this.pitTimesHistory = document.createElement('ul');
+                    this.pitTimesHistory.className = 'times-history';
+                    col.appendChild(this.pitTimesHistory);
+
+                    const riderHistoryTitle = document.createElement('p');
+                    riderHistoryTitle.className = 'times-history-title';
+                    riderHistoryTitle.textContent = 'Rider times history';
+                    col.appendChild(riderHistoryTitle);
+
+                    this.riderTimesHistory = document.createElement('ul');
+                    this.riderTimesHistory.className = 'times-history';
+                    col.appendChild(this.riderTimesHistory);
+
+                    teamsContainer.appendChild(col);
+                    return col;
+                }
+                bindPitButtons() {
+                    this.btnPitIn.addEventListener('click', () => {
+                        if (!raceRunning) return;
+                        if (!this.pitRunning) {
+                            this.startPit();
+                        }
+                    });
+                    this.btnPitOut.addEventListener('click', () => {
+                        if (!raceRunning) return;
+                        if (this.pitRunning) {
+                            this.stopPit();
+                        }
+                    });
+                }
+                updatePitTimerDisplay(elapsedMs) {
+                    this.pitTimerDisplay.textContent = formatTimeMs(elapsedMs);
+                }
+                addPitIntervalStrip(durationMs) {
+                    const strip = document.createElement('div');
+                    strip.className = 'pit-time-strip';
+                    const count = this.pitIntervals.length;
+                    strip.title = `Pitstop #${count}`;
+                    strip.textContent = count;
+                    this.pitTimesList.appendChild(strip);
+                }
+                startPit() {
+                    this.pitRunning = true;
+                    this.pitStartTime = currentRaceElapsedMs();
+                    this.btnPitIn.disabled = true;
+                    this.btnPitIn.setAttribute('aria-pressed', 'true');
+                    this.btnPitOut.disabled = false;
+                    // Rider timer stops while in pit
+                    //this.riderStartTimestamp = null;
+                    // Initialize pit timer display to 0 immediately
+                    this.updatePitTimerDisplay(0);
+                }
+                stopPit() {
+                    if (!this.pitRunning) return;
+                    this.pitRunning = false;
+                    const pitEndTime = currentRaceElapsedMs();
+                    const pitDuration = pitEndTime - this.pitStartTime;
+                    this.pitIntervals.push({ start: this.pitStartTime, end: pitEndTime, durationMs: pitDuration });
+                    this.addPitIntervalStrip(pitDuration);
+                    this.updatePitTimerDisplay(pitDuration);
+                    this.btnPitIn.disabled = false;
+                    this.btnPitIn.setAttribute('aria-pressed', 'false');
+                    this.btnPitOut.disabled = true;
+                    // Rider timer resets/starts counting from now (pit OUT moment)
+
+                    // Calculate rider elapsed before pit started
+                    let riderElapsedTime = 0;
+                    if(this.riderStartTimestamp !== null){
+                    riderElapsedTime = this.pitStartTime - this.riderStartTimestamp;
+                    }
+                    // Logging pit and rider times to history lists
+                    const pitItem = document.createElement('li');
+                    pitItem.textContent = formatTimeMs(pitDuration);
+                    this.pitTimesHistory.appendChild(pitItem);
+
+                    const riderItem = document.createElement('li');
+                    riderItem.textContent = formatTimeMs(riderElapsedTime);
+                    this.riderTimesHistory.appendChild(riderItem);
+
+
+
+                    this.riderStartTimestamp = currentRaceElapsedMs();
+                    this.riderTimerDisplay.textContent = '00:00.00';
+                    //this.updatePitTimerDisplay(0);
+                }
+                updateTimers(raceElapsedMs) {
+                    // Update pit timer if running
+                    if (this.pitRunning) {
+                        const pitElapsed = raceElapsedMs - this.pitStartTime;
+                        this.updatePitTimerDisplay(pitElapsed);
+                        // Rider timer paused - leave display as last or 00 if null
+                        if (this.riderStartTimestamp === null) {
+                            //this.riderTimerDisplay.textContent = '00:00.00';
+                        }
+                    } else {
+                        // Show last pit duration or zero
+                        if (this.pitIntervals.length > 0) {
+                            const lastPit = this.pitIntervals[this.pitIntervals.length - 1];
+                            this.updatePitTimerDisplay(lastPit.durationMs);
+                        } else {
+                            this.updatePitTimerDisplay(0);
+                        }
+                        if (this.riderStartTimestamp !== '00:00.00') {
+                            const riderElapsed = raceElapsedMs - this.riderStartTimestamp;
+                            this.riderTimerDisplay.textContent = formatTimeMs(riderElapsed);
+                        } else {
+                            this.riderTimerDisplay.textContent = '00:00.00';
+                        }
+                    }
+                }
+                
+                reset() {
+                    this.pitIntervals = [];
+                    this.pitRunning = false;
+                    this.pitStartTime = 0;
+                    this.riderStartTimestamp = null;
+                    this.lastRaceElapsed = 0;
+                    this.pitTimerDisplay.textContent = '00:00.00';
+                    this.riderTimerDisplay.textContent = '00:00.00';
+                    this.btnPitIn.disabled = false;
+                    this.btnPitIn.setAttribute('aria-pressed', 'false');
+                    this.btnPitOut.disabled = true;
+                    this.pitTimesList.innerHTML = '';
+                }
+            }
+
+           
+            const teams = [];
+            for (let i = 0; i < 6; i++) {
+                teams.push(new Team(i));
+            }
+
+            // Returns race elapsed time in ms
+            function currentRaceElapsedMs() {
+                return raceDurationMs - raceRemainingMs;
+            }
+
+            // Update main timer UI
+            function updateMainTimer() {
+                const display = formatHHMMSS(raceRemainingMs);
+                mainTimerDisplay.textContent = display;
+                mainTimerDisplay.setAttribute('aria-label', `Main race timer: ${display}`);
+            }
+
+            // Tick function invoked every 50ms for smooth update
+            function tick() {
+                const now = Date.now();
+                const elapsedSinceStart = now - startTimestamp.value;
+                let newRemaining = raceDurationMs - elapsedSinceStart;
+                if (newRemaining < 0) newRemaining = 0;
+                raceRemainingMs = newRemaining;
+
+                updateMainTimer();
+
+                // Update all teams rider and pit timers
+                const raceElapsed = currentRaceElapsedMs();
+                teams.forEach(team => {
+                    team.updateTimers(raceElapsed);
+                });
+
+                if (raceRemainingMs === 0) {
+                    stopTimer();
+                }
+            }
+
+            function startTimer() {
+                
+                if (raceRunning) return;
+                // If starting fresh or after reset, reset timestamps accordingly
+                if (raceRemainingMs === 0) {
+                    raceRemainingMs = raceDurationMs;
+                    teams.forEach(team => team.reset());
+                }
+                startTimestamp.value = Date.now() - (raceDurationMs - raceRemainingMs);
+                raceInterval = setInterval(tick, 50);
+                raceRunning = true;
+
+                btnStart.disabled = true;
+                btnPause.disabled = false;
+                btnReset.disabled = false;
+                raceTimeInput.disabled = true;
+
+                // On race start: start rider timer for all teams not in pit
+                const raceElapsed = currentRaceElapsedMs();
+                teams.forEach(team => {
+                    if (!team.pitRunning) {
+                        team.riderStartTimestamp = raceElapsed;
+                        team.btnPitIn.disabled = false;
+                        team.btnPitOut.disabled = true;
+                    } else {
+                        team.btnPitIn.disabled = true;
+                        team.btnPitOut.disabled = false;
+                        // Rider timers paused while in pit
+                        team.riderStartTimestamp = null;
+                    }
+                });
+                 
+                /*
+                if (raceRunning) return;
+                // If starting fresh or after reset, reset timestamps accordingly
+                if (raceRemainingMs === 0) {
+                    raceRemainingMs = raceDurationMs;
+                    teams.forEach(team => team.reset());
+                }
+                startTimestamp.value = Date.now() - (raceDurationMs - raceRemainingMs);
+                raceInterval = setInterval(tick, 50);
+                raceRunning = true;
+
+                btnStart.disabled = true;
+                btnPause.disabled = false;
+                btnReset.disabled = false;
+                raceTimeInput.disabled = true;
+                // Disable pit IN buttons if race not running
+                const raceElapsed = currentRaceElapsedMs();
+                teams.forEach(team => {
+                    if (!team.pitRunning) {
+                        team.btnPitIn.disabled = false;
+                         //team.riderStartTimestamp = raceElapsed;
+                    }
+                });*/
+            }
+
+            function pauseTimer() {
+                if (!raceRunning) return;
+                clearInterval(raceInterval);
+                raceInterval = null;
+                raceRunning = false;
+                btnStart.disabled = false;
+                btnPause.disabled = true;
+                btnReset.disabled = false;
+                raceTimeInput.disabled = true;
+                // Disable all pit IN/OUT buttons during pause
+                teams.forEach(team => {
+                    team.btnPitIn.disabled = true;
+                    team.btnPitOut.disabled = true;
+                });
+            }
+
+            function resetTimer() {
+                
+                clearInterval(raceInterval);
+                raceInterval = null;
+                raceRunning = false;
+                raceRemainingMs = raceDurationMs;
+                updateMainTimer();
+                teams.forEach(team => team.reset());
+                btnStart.disabled = false;
+                btnPause.disabled = true;
+                btnReset.disabled = true;
+                raceTimeInput.disabled = false;
+            }
+
+            function stopTimer() {
+                clearInterval(raceInterval);
+                raceInterval = null;
+                raceRunning = false;
+                btnStart.disabled = true;
+                btnPause.disabled = true;
+                btnReset.disabled = false;
+                raceTimeInput.disabled = true;
+                // Disable all pit buttons
+                teams.forEach(team => {
+                    team.btnPitIn.disabled = true;
+                    team.btnPitOut.disabled = true;
+                });
+            }
+
+            // Handlers
+            btnStart.addEventListener('click', () => {
+               startTimer();
+            });
+            btnPause.addEventListener('click', () => {
+                pauseTimer();
+            });
+            btnReset.addEventListener('click', () => {
+                if (confirm("rly") == true) {
+                    startTimer();resetTimer();
+                }  
+            });
+
+            raceTimeInput.addEventListener('change', (e) => {
+                const val = e.target.value;
+                const ms = parseRaceTimeInput(val);
+                if (ms !== null && ms > 0 && ms <= 24 * 3600 * 1000) {
+                    raceDurationMs = ms;
+                    raceRemainingMs = ms;
+                    updateMainTimer();
+                } else {
+                    // Invalid input, revert to previous valid value
+                    e.target.value = formatHHMMSS(raceDurationMs);
+                }
+            });
+
+            // Initialize UI on load
+            updateMainTimer();
+        })();
+    </script>
+</body>
+
+</html>
