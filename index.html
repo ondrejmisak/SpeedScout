@@ -2,57 +2,43 @@
 <html lang="en" data-bs-theme="dark">
 
 <head>
-    <link rel="icon" type="image/x-icon" href="🏁">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏁</text></svg>">
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-
     <title>SpeedScout</title>
     <link rel="stylesheet" href="https://bootswatch.com/5/sandstone/bootstrap.css">
 
 </head>
 
 <body>
-
-
     <nav class="navbar navbar-expand-lg bg-dark" data-bs-theme="dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">SpeedScout🚩</a>
-            
+            <a class="navbar-brand" href="#">SpeedScout</a>
             <div class="d-flex">
-
                 <div class="d-flex" role="region" aria-label="Main Race Timer Controls">
                     <div class="form-floating m-1">
                         <input type="time" class="form-control" id="raceTimeInput" step="1"  value="01:00:00">
                         <label for="raceTimeInput">Set Time</label>
                     </div>
-                    
                     <button class="btn btn-success m-1" id="btnStart">Start</button>
                     <button class="btn btn-warning m-1" id="btnPause" disabled>Pause</button>
                     <button class="btn btn-danger m-1" id="btnReset" disabled>Reset</button>
                 </div>
-
                 <div class="d-flex" aria-label="Add or Remove Teams Controls">
                     <button class="btn btn-light m-1" id="btnAddTeam" aria-disabled="false"
                         aria-label="Add Team">Add Team</button>
                     <button class="btn btn-outline-light m-1" id="btnRemoveTeam" aria-disabled="true"
                         aria-label="Remove Team">Remove Team</button>
                 </div>
-
             </div>
         </div>
     </nav>
 
-
+    <div class="progress">
+        <div class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
     <div class="container-fluid">
         <h1 class="text-center my-2 fw-bolder text-success-emphasis" id="mainTimerDisplay" aria-live="polite" aria-atomic="true">01:00:00</h1>
-        <div class="progress">
-            <div class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuemin="0"
-                aria-valuemax="100"></div>
-        </div>
-       
-
-
-
         <div class="teams-container" role="region" aria-label="Teams Timers">
 
         </div>
@@ -153,12 +139,12 @@
                     pitControls.className = 'pit-controls';
 
                     this.btnPitIn = document.createElement('button');
-                    this.btnPitIn.className = 'pit-btn';
+                    this.btnPitIn.className = 'pit-btn btn btn-success m-1';
                     this.btnPitIn.textContent = 'IN';
                     this.btnPitIn.setAttribute('aria-pressed', 'false');
 
                     this.btnPitOut = document.createElement('button');
-                    this.btnPitOut.className = 'pit-btn';
+                    this.btnPitOut.className = 'pit-btn btn btn-warning m-1';
                     this.btnPitOut.textContent = 'OUT';
                     this.btnPitOut.disabled = true;
 
@@ -178,12 +164,15 @@
                     this.riderTimerDisplay.textContent = '00:00.00';
                     col.appendChild(this.riderTimerDisplay);
 
-                    const riderTimeHistoryTable = document.createElement('table');
-                    col.appendChild(riderTimeHistoryTable);
+                     const riderTimeHistoryTable = document.createElement('table');
+                     col.appendChild(riderTimeHistoryTable);
+                     const riderTimeHistoryThead = document.createElement('thead');
+                     riderTimeHistoryTable.appendChild(riderTimeHistoryThead);
+
                     this.riderTimeHistoryTbody = document.createElement('tbody');
                     riderTimeHistoryTable.appendChild(this.riderTimeHistoryTbody);
                     const riderTimeHistoryTrow = document.createElement('tr');
-                    this.riderTimeHistoryTbody.appendChild(riderTimeHistoryTrow);
+                    riderTimeHistoryThead.appendChild(riderTimeHistoryTrow);
 
                     // New UL lists for history
                     const TimerHistoryTitle = document.createElement('td');
@@ -193,12 +182,12 @@
 
                     const riderHistoryTitle = document.createElement('td');
                     riderHistoryTitle.className = 'times-history-title';
-                    riderHistoryTitle.textContent = 'Rider history';
+                    riderHistoryTitle.textContent = 'Rider time';
                     riderTimeHistoryTrow.appendChild(riderHistoryTitle);
 
                     const pitHistoryTitle = document.createElement('td');
                     pitHistoryTitle.className = 'times-history-title';
-                    pitHistoryTitle.textContent = 'Pit history';
+                    pitHistoryTitle.textContent = 'Pit time';
                     riderTimeHistoryTrow.appendChild(pitHistoryTitle);
 
                     teamsContainer.appendChild(col);
