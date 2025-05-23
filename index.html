@@ -7,7 +7,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SpeedScout</title>
     <link rel="stylesheet" href="https://bootswatch.com/5/sandstone/bootstrap.css">
-
+    <style>
+        .font-small {
+            font-size: 12px;
+        }
+    </style>
 </head>
 
 <body>
@@ -37,13 +41,13 @@
     <div class="progress">
         <div class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuemin="0" aria-valuemax="100"></div>
     </div>
-    <div class="container-fluid">
+    <div class="">
         <h1 class="text-center my-2 fw-bolder text-success-emphasis" id="mainTimerDisplay" aria-live="polite" aria-atomic="true">01:00:00</h1>
-        <div class="teams-container" role="region" aria-label="Teams Timers">
-
-        </div>
+        
     </div>
-
+    <div class="container-fluid" role="region" aria-label="Teams Timers">
+        <div class="row g-2 teams-container"></div>
+    </div>
 
     <script>
         (() => {
@@ -123,28 +127,32 @@
                     this.bindPitButtons();
                 }
                 createTeamColumn() {
-                    const col = document.createElement('section');
-                    col.className = 'team-column';
+                    const teamcol = document.createElement('section');
+                    teamcol.className = 'col-2 p-1';
+
+                    const col = document.createElement('div');
+                    col.className = 'card text-white bg-dark p-2';
                     col.setAttribute('aria-label', `Team ${this.id + 1}`);
+                    teamcol.appendChild(col);
 
                     this.headerInput = document.createElement('input');
                     this.headerInput.type = 'text';
                     this.headerInput.value = `Team ${this.id + 1}`;
-                    this.headerInput.className = 'team-header-input';
+                    this.headerInput.className = 'form-control text-center py-2 ';
                     this.headerInput.setAttribute('aria-label', `Team ${this.id + 1} Name`);
-                    col.appendChild(this.headerInput);
+                    col .appendChild(this.headerInput);
 
                     // Pit controls
                     const pitControls = document.createElement('div');
-                    pitControls.className = 'pit-controls';
+                    pitControls.className = 'btn-group btn-group-lg w-100 py-2';
 
                     this.btnPitIn = document.createElement('button');
-                    this.btnPitIn.className = 'pit-btn btn btn-success m-1';
+                    this.btnPitIn.className = 'btn btn-success';
                     this.btnPitIn.textContent = 'IN';
                     this.btnPitIn.setAttribute('aria-pressed', 'false');
 
                     this.btnPitOut = document.createElement('button');
-                    this.btnPitOut.className = 'pit-btn btn btn-warning m-1';
+                    this.btnPitOut.className = 'btn btn-warning';
                     this.btnPitOut.textContent = 'OUT';
                     this.btnPitOut.disabled = true;
 
@@ -152,22 +160,27 @@
                     pitControls.appendChild(this.btnPitOut);
                     col.appendChild(pitControls);
 
-                    // Pit timer display
-                    this.pitTimerDisplay = document.createElement('div');
-                    this.pitTimerDisplay.className = 'pit-timer';
-                    this.pitTimerDisplay.textContent = '00:00.00'; // initial 0 time
-                    col.appendChild(this.pitTimerDisplay);
-
                     // Rider timer display
-                    this.riderTimerDisplay = document.createElement('p');
-                    this.riderTimerDisplay.className = 'rider-timer';
+                    this.riderTimerDisplay = document.createElement('h2');
+                    this.riderTimerDisplay.className = 'text-center text-success-emphasis';
                     this.riderTimerDisplay.textContent = '00:00.00';
                     col.appendChild(this.riderTimerDisplay);
 
-                     const riderTimeHistoryTable = document.createElement('table');
-                     col.appendChild(riderTimeHistoryTable);
-                     const riderTimeHistoryThead = document.createElement('thead');
-                     riderTimeHistoryTable.appendChild(riderTimeHistoryThead);
+                    // Pit timer display
+                    this.pitTimerDisplay = document.createElement('h3');
+                    this.pitTimerDisplay.className = 'text-center text-warning-emphasis';
+                    this.pitTimerDisplay.textContent = '00:00.00'; // initial 0 time
+                    col.appendChild(this.pitTimerDisplay);
+
+                    const riderTimeHistoryDiv = document.createElement('div');
+                    riderTimeHistoryDiv.className = 'table-responsive';
+                    col.appendChild(riderTimeHistoryDiv);
+                    const riderTimeHistoryTable = document.createElement('table');
+                    riderTimeHistoryTable.className = 'table table-striped rounded font-small';
+                    riderTimeHistoryDiv.appendChild(riderTimeHistoryTable);
+
+                    const riderTimeHistoryThead = document.createElement('thead');
+                    riderTimeHistoryTable.appendChild(riderTimeHistoryThead);
 
                     this.riderTimeHistoryTbody = document.createElement('tbody');
                     riderTimeHistoryTable.appendChild(this.riderTimeHistoryTbody);
@@ -190,8 +203,9 @@
                     pitHistoryTitle.textContent = 'Pit time';
                     riderTimeHistoryTrow.appendChild(pitHistoryTitle);
 
-                    teamsContainer.appendChild(col);
-                    return col;
+                    teamsContainer.appendChild(teamcol);
+
+                    return teamcol;
                 }
                 bindPitButtons() {
                     this.btnPitIn.addEventListener('click', () => {
@@ -253,7 +267,7 @@
                     const counterItem = document.createElement('td');
                     const count = this.pitIntervals.length;
                     counterItem.title = `#${count}`;
-                    counterItem.innerHTML = `<span class="badge bg-dark rounded-pill">${count}</span>` ;
+                    counterItem.innerHTML = `<span class="">${count}</span>` ;
                     riderRow.appendChild(counterItem);
 
                     const riderItem = document.createElement('td');
