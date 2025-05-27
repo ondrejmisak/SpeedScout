@@ -23,7 +23,7 @@
 
                 <div class="d-flex" role="region" aria-label="Main Race Timer Controls">
                     <div class="form-floating m-1">
-                        <input type="time" class="form-control border-primary form-control-sm" id="raceTimeInput" step="1"  value="01:00:00 PM">
+                        <input type="time" class="form-control border-primary form-control-sm" id="raceTimeInput" step="1"  value="01:00:00">
                         <label for="raceTimeInput" class="col-form-label-sm">Race time</label>
                     </div>
                     <div class="form-floating m-1">
@@ -67,13 +67,15 @@
     <script>
         (() => {
             const TEAMS = 6;
+           
             const MAX_TEAMS = 10;
             const MIN_TEAMS = 1;
 
+            const RACE_TIME = 3600000;
             const MIN_PIT_TIME = 30000;//ms 
 
-            const MIN_RACER_TIME = 120000; //2min
-            const MAX_RACER_TIME = 480000; //8min
+            const MIN_STINT_TIME = 120000; //2min
+            const MAX_STINT_TIME = 480000; //8min
 
             const raceTimeInput = document.getElementById('raceTimeInput');
             const raceMinStintInput = document.getElementById('raceTimeMinStint');
@@ -127,9 +129,9 @@
             }
 
             // Main race timer state
-            let raceDurationMs = parseRaceTimeInput(raceTimeInput.value) || 3600000;
-            let raceMaxStintMs = parseRaceTimeInput(raceMaxStintInput.value) || MAX_RACER_TIME;
-            let raceMinStintMs = parseRaceTimeInput(raceMinStintInput.value) || MIN_RACER_TIME;
+            let raceDurationMs = parseRaceTimeInput(raceTimeInput.value) || RACE_TIME;
+            let raceMaxStintMs = parseRaceTimeInput(raceMaxStintInput.value) || MAX_STINT_TIME;
+            let raceMinStintMs = parseRaceTimeInput(raceMinStintInput.value) || MIN_STINT_TIME;
             let racePitMs = parseRaceTimeInput(racePitInput.value) || MIN_PIT_TIME;
 
             let raceRemainingMs = raceDurationMs;
@@ -295,13 +297,13 @@
                     riderRow.appendChild(counterItem);
 
                     const riderItem = document.createElement('td');
-                    riderItem.textContent = `${(riderElapsedTime < MIN_RACER_TIME || riderElapsedTime > MAX_RACER_TIME) ? '' : ' '}${formatTimeMs(riderElapsedTime)}`;
-                    riderItem.className = `${(riderElapsedTime < MIN_RACER_TIME || riderElapsedTime > MAX_RACER_TIME) ? 'text-danger' : ''}`;
+                    riderItem.textContent = `${(riderElapsedTime < raceMinStintMs || riderElapsedTime > raceMaxStintMs) ? '' : ' '}${formatTimeMs(riderElapsedTime)}`;
+                    riderItem.className = `${(riderElapsedTime < raceMinStintMs || riderElapsedTime > raceMaxStintMs) ? 'text-danger' : ''}`;
                     riderRow.appendChild(riderItem);
 
                     const pitItem = document.createElement('td');
-                    pitItem.textContent = `${pitDuration < MIN_PIT_TIME ? '' : ' '}${formatTimeMs(pitDuration)}`;
-                    pitItem.className = `${pitDuration < MIN_PIT_TIME ? 'text-danger' : '   '}`;
+                    pitItem.textContent = `${pitDuration < racePitMs ? '' : ' '}${formatTimeMs(pitDuration)}`;
+                    pitItem.className = `${pitDuration < racePitMs ? 'text-danger' : '   '}`;
                     riderRow.appendChild(pitItem);
 
                     this.riderStartTimestamp = currentRaceElapsedMs();
