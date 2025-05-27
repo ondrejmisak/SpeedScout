@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="sk" data-bs-theme="dark">
 
 <head>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏁</text></svg>">
@@ -19,11 +19,26 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="#">SpeedScout</a>
             <div class="d-flex">
+                <button id="fullscreen-btn" class="btn btn-light m-1">Fullscreen</button>
+
                 <div class="d-flex" role="region" aria-label="Main Race Timer Controls">
                     <div class="form-floating m-1">
-                        <input type="time" class="form-control" id="raceTimeInput" step="1"  value="01:00:00">
-                        <label for="raceTimeInput">Set Time</label>
+                        <input type="time" class="form-control border-primary form-control-sm" id="raceTimeInput" step="1"  value="01:00:00 PM">
+                        <label for="raceTimeInput" class="col-form-label-sm">Race time</label>
                     </div>
+                    <div class="form-floating m-1">
+                        <input type="time" class="form-control form-control-sm" id="raceTimeMaxStint" step="1"  value="00:08:00">
+                        <label for="raceTimeMaxStint" class="col-form-label-sm">Max stint time</label>
+                    </div>
+                    <div class="form-floating m-1">
+                        <input type="time" class="form-control form-control-sm" id="raceTimeMinStint" step="1"  value="00:02:00">
+                        <label for="raceTimeMinStint" class="col-form-label-sm">Min stint time</label>
+                    </div>
+                    <div class="form-floating m-1">
+                        <input type="time" class="form-control form-control-sm" id="raceTimePit" step="1"  value="00:00:30">
+                        <label for="raceTimePit" class="col-form-label-sm">Pit time</label>
+                    </div>
+                    
                     <button class="btn btn-success m-1" id="btnStart">Start</button>
                     <button class="btn btn-warning m-1" id="btnPause" disabled>Pause</button>
                     <button class="btn btn-danger m-1" id="btnReset" disabled>Reset</button>
@@ -51,16 +66,20 @@
 
     <script>
         (() => {
-            const TEAMS = 1;
+            const TEAMS = 6;
             const MAX_TEAMS = 10;
             const MIN_TEAMS = 1;
 
-            const MIN_PIT_TIME = 45000;//ms
+            const MIN_PIT_TIME = 30000;//ms 
 
-            const MIN_RACER_TIME = 300000;
-            const MAX_RACER_TIME = 900000;
+            const MIN_RACER_TIME = 120000; //2min
+            const MAX_RACER_TIME = 480000; //8min
 
             const raceTimeInput = document.getElementById('raceTimeInput');
+            const raceMinStintInput = document.getElementById('raceTimeMinStint');
+            const raceMaxStintInput = document.getElementById('raceTimeMaxStint');
+            const racePitInput = document.getElementById('raceTimePit');
+
             const mainTimerDisplay = document.getElementById('mainTimerDisplay');
             const btnStart = document.getElementById('btnStart');
             const btnPause = document.getElementById('btnPause');
@@ -71,6 +90,7 @@
             const teamsContainer = document.querySelector('.teams-container');
 
             const progressBar = document.querySelector('.progress-bar');
+            const fullscreenBtn = document.getElementById('fullscreen-btn');
 
             // Utility functions for time formatting
             function formatTimeMs(ms) {
@@ -108,6 +128,10 @@
 
             // Main race timer state
             let raceDurationMs = parseRaceTimeInput(raceTimeInput.value) || 3600000;
+            let raceMaxStintMs = parseRaceTimeInput(raceMaxStintInput.value) || MAX_RACER_TIME;
+            let raceMinStintMs = parseRaceTimeInput(raceMinStintInput.value) || MIN_RACER_TIME;
+            let racePitMs = parseRaceTimeInput(racePitInput.value) || MIN_PIT_TIME;
+
             let raceRemainingMs = raceDurationMs;
             let raceInterval = null;
             let raceRunning = false;
@@ -271,12 +295,12 @@
                     riderRow.appendChild(counterItem);
 
                     const riderItem = document.createElement('td');
-                    riderItem.textContent = `${(riderElapsedTime < MIN_RACER_TIME || riderElapsedTime > MAX_RACER_TIME) ? '* ' : ' '}${formatTimeMs(riderElapsedTime)}`;
+                    riderItem.textContent = `${(riderElapsedTime < MIN_RACER_TIME || riderElapsedTime > MAX_RACER_TIME) ? '' : ' '}${formatTimeMs(riderElapsedTime)}`;
                     riderItem.className = `${(riderElapsedTime < MIN_RACER_TIME || riderElapsedTime > MAX_RACER_TIME) ? 'text-danger' : ''}`;
                     riderRow.appendChild(riderItem);
 
                     const pitItem = document.createElement('td');
-                    pitItem.textContent = `${pitDuration < MIN_PIT_TIME ? '* ' : ' '}${formatTimeMs(pitDuration)}`;
+                    pitItem.textContent = `${pitDuration < MIN_PIT_TIME ? '' : ' '}${formatTimeMs(pitDuration)}`;
                     pitItem.className = `${pitDuration < MIN_PIT_TIME ? 'text-danger' : '   '}`;
                     riderRow.appendChild(pitItem);
 
@@ -285,6 +309,7 @@
                     //this.updatePitTimerDisplay(0);
                 }
                 updateTimers(raceElapsedMs) {
+                    
                     // Update pit timer if running
                     if (this.pitRunning) {
                         const pitElapsed = raceElapsedMs - this.pitStartTime;
@@ -304,6 +329,7 @@
 
                         if (this.riderStartTimestamp !== null) {
                             const riderElapsed = raceElapsedMs - this.riderStartTimestamp;
+                            
                             this.riderTimerDisplay.textContent = formatTimeMs(riderElapsed);
                         } else {
                             this.riderTimerDisplay.textContent = '00:00.00';
@@ -411,6 +437,9 @@
                 btnPause.disabled = false;
                 btnReset.disabled = false;
                 raceTimeInput.disabled = true;
+                raceMinStintInput.disabled = true;
+                raceMaxStintInput.disabled = true;
+                racePitInput.disabled = true;
 
                 // On race start: start rider timer for all teams not in pit
                 const raceElapsed = currentRaceElapsedMs();
@@ -464,6 +493,9 @@
                 btnPause.disabled = true;
                 btnReset.disabled = false;
                 raceTimeInput.disabled = true;
+                raceMinStintInput.disabled = true;
+                raceMaxStintInput.disabled = true;
+                racePitInput.disabled = true;
                 // Disable all pit IN/OUT buttons during pause
                 teams.forEach(team => {
                     team.btnPitIn.disabled = true;
@@ -488,6 +520,9 @@
                 btnPause.disabled = true;
                 btnReset.disabled = true;
                 raceTimeInput.disabled = false;
+                raceMinStintInput.disabled = false;
+                raceMaxStintInput.disabled = false;
+                racePitInput.disabled = false;
                 updateAddRemoveButtons();
                 saveToLocalStorage();
             }
@@ -500,6 +535,9 @@
                 btnPause.disabled = true;
                 btnReset.disabled = false;
                 raceTimeInput.disabled = true;
+                raceMinStintInput.disabled = true;
+                raceMaxStintInput.disabled = true;
+                racePitInput.disabled = true;
                 // Disable all pit buttons
                 teams.forEach(team => {
                     team.btnPitIn.disabled = true;
@@ -519,12 +557,15 @@
             });
             btnReset.addEventListener('click', () => {
                 if (confirm("rly") == true) {
-                    //startTimer(); 
                     resetTimer();
                 }
             });
             btnAddTeam.addEventListener('click', addTeam);
-            btnRemoveTeam.addEventListener('click', removeTeam);
+            btnRemoveTeam.addEventListener('click', () => {
+                if (confirm("naozaj odstranit") == true) {
+                    removeTeam();
+                }
+            });
 
             raceTimeInput.addEventListener('change', (e) => {
                 const val = e.target.value;
@@ -533,6 +574,42 @@
                     raceDurationMs = ms;
                     raceRemainingMs = ms;
                     updateMainTimer();
+                    saveToLocalStorage();
+                } else {
+                    // Invalid input, revert to previous valid value
+                    e.target.value = formatHHMMSS(raceDurationMs);
+                }
+            });
+
+            raceMinStintInput.addEventListener('change', (e) => {
+                const val = e.target.value;
+                const ms = parseRaceTimeInput(val);
+                if (ms !== null && ms > 0 && ms <= 24 * 3600 * 1000) {
+                    raceMinStintMs = ms;
+                    saveToLocalStorage();
+                } else {
+                    // Invalid input, revert to previous valid value
+                    e.target.value = formatHHMMSS(raceDurationMs);
+                }
+            });
+
+            raceMaxStintInput.addEventListener('change', (e) => {
+                const val = e.target.value;
+                const ms = parseRaceTimeInput(val);
+                if (ms !== null && ms > 0 && ms <= 24 * 3600 * 1000) {
+                    raceMaxStintMs = ms;
+                    saveToLocalStorage();     
+                } else {
+                    // Invalid input, revert to previous valid value
+                    e.target.value = formatHHMMSS(raceDurationMs);
+                }
+            });
+
+            racePitInput.addEventListener('change', (e) => {
+                const val = e.target.value;
+                const ms = parseRaceTimeInput(val);
+                if (ms !== null && ms > 0 && ms <= 24 * 3600 * 1000) {
+                    racePitMs = ms;
                     saveToLocalStorage();
                 } else {
                     // Invalid input, revert to previous valid value
@@ -553,6 +630,9 @@
             function saveToLocalStorage() {
                 const state = {
                     raceDurationMs,
+                    raceMaxStintMs,
+                    raceMinStintMs,
+                    racePitMs,
                     raceRemainingMs,
                     raceRunning,
                     startTimestamp: startTimestamp.value,
@@ -576,10 +656,17 @@
                     try {
                         const state = JSON.parse(savedState);
                         raceDurationMs = state.raceDurationMs;
+                        raceMaxStintMs = state.raceMaxStintMs;
+                        raceMinStintMs = state.raceMinStintMs;
+                        racePitMs = state.racePitMs;
                         raceRemainingMs = state.raceRemainingMs;
                         raceRunning = state.raceRunning;
                         startTimestamp.value = state.startTimestamp || null;
                         raceTimeInput.value = formatHHMMSS(raceDurationMs);
+                        raceMaxStintInput.value = formatHHMMSS(raceMaxStintMs);
+                        raceMinStintInput.value = formatHHMMSS(raceMinStintMs);
+                        racePitInput.value = formatHHMMSS(racePitMs);
+                        
                         updateMainTimer();
 
                         // Clear existing teams if any (should be none on fresh load)
@@ -634,11 +721,18 @@
                             btnPause.disabled = false;
                             btnReset.disabled = false;
                             raceTimeInput.disabled = true;
+                            
+                            raceMaxStintInput.disabled = true;
+                            raceMinStintInput.disabled = true;
+                            racePitInput.disabled = true;
                         } else {
                             btnStart.disabled = false;
                             btnPause.disabled = true;
                             btnReset.disabled = raceRemainingMs === raceDurationMs;
                             raceTimeInput.disabled = raceRemainingMs !== raceDurationMs;
+                            raceMaxStintInput.disabled = raceRemainingMs !== raceDurationMs;
+                            raceMinStintInput.disabled = raceRemainingMs !== raceDurationMs;;
+                            racePitInput.disabled = raceRemainingMs !== raceDurationMs;;
                         }
                     } catch (e) {
                         console.error('Failed to load state from localStorage:', e);
@@ -658,6 +752,53 @@
             }
 
             loadFromLocalStorage();
+
+
+               
+            
+            function isFullscreen() {
+                return document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+            }
+            function toggleFullscreen() {
+                if (isFullscreen()) {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                } else {
+                let elem = document.documentElement;
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen();
+                } else if (elem.webkitRequestFullscreen) {
+                    elem.webkitRequestFullscreen();
+                } else if (elem.mozRequestFullScreen) {
+                    elem.mozRequestFullScreen();
+                } else if (elem.msRequestFullscreen) {
+                    elem.msRequestFullscreen();
+                }
+                }
+            }
+            fullscreenBtn.addEventListener('click', () => {
+                toggleFullscreen();
+            });
+            // Update button text on fullscreen change
+            function updateFullscreenBtn() {
+                if (isFullscreen()) {
+                fullscreenBtn.textContent = "Exit Fullscreen";
+                } else {
+                fullscreenBtn.textContent = "fullscreen";
+                }
+            }
+            document.addEventListener('fullscreenchange', updateFullscreenBtn);
+            document.addEventListener('webkitfullscreenchange', updateFullscreenBtn);
+            document.addEventListener('mozfullscreenchange', updateFullscreenBtn);
+            document.addEventListener('MSFullscreenChange', updateFullscreenBtn);
+            updateFullscreenBtn();
         })();
     </script>
 </body>
