@@ -27,15 +27,15 @@
                         <label for="raceTimeInput" class="col-form-label-sm">Race time</label>
                     </div>
                     <div class="form-floating m-1">
-                        <input type="time" class="form-control form-control-sm" id="raceTimeMaxStint" step="1"  value="00:08:00">
+                        <input type="time" class="form-control form-control-sm" id="raceTimeMaxStint"  value="00:05:00">
                         <label for="raceTimeMaxStint" class="col-form-label-sm">Max stint time</label>
                     </div>
                     <div class="form-floating m-1">
-                        <input type="time" class="form-control form-control-sm" id="raceTimeMinStint" step="1"  value="00:02:00">
+                        <input type="time" class="form-control form-control-sm" id="raceTimeMinStint"   value="00:01:00">
                         <label for="raceTimeMinStint" class="col-form-label-sm">Min stint time</label>
                     </div>
                     <div class="form-floating m-1">
-                        <input type="time" class="form-control form-control-sm" id="raceTimePit" step="1"  value="00:00:30">
+                        <input type="time" class="form-control form-control-sm" id="raceTimePit"   value="00:00:30">
                         <label for="raceTimePit" class="col-form-label-sm">Pit time</label>
                     </div>
                     
@@ -74,8 +74,8 @@
             const RACE_TIME = 3600000;
             const MIN_PIT_TIME = 30000;//ms 
 
-            const MIN_STINT_TIME = 120000; //2min
-            const MAX_STINT_TIME = 480000; //8min
+            const MIN_STINT_TIME = 60000; //1min
+            const MAX_STINT_TIME = 300000; //5min
 
             const raceTimeInput = document.getElementById('raceTimeInput');
             const raceMinStintInput = document.getElementById('raceTimeMinStint');
